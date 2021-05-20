@@ -1,20 +1,20 @@
 Creating a conda environment
 ----------------------------
 
-Create new 'avl' environment with:
+Create new 'avl' environment with::
 
   $ conda env create -f environment.yml
 
-Then activate the environment with:
+Then activate the environment with::
 
   $ conda activate avl
 
 
-After updating the environment.yml you can update the 'avl' environment using:
+After updating the environment.yml you can update the 'avl' environment using::
 
   $ conda env update -f environment.yml
 
-To use a different environment name use e.g.:
+To use a different environment name use e.g.::
 
   $ conda env create -n avltest -f environment.yml
 
@@ -22,7 +22,7 @@ To use a different environment name use e.g.:
 Running jupyterlab
 ------------------
 
-Start jupyterlab within your conda environment with:
+Start jupyterlab within your conda environment with::
 
   $ jupiter-lab
 
@@ -33,11 +33,11 @@ Any modifications in the .md or .ipynb file will be automatically synchronized t
 
 Creating HTML page
 ------------------
-A fully rendered notebook can be turned into HTML using
+A fully rendered notebook can be turned into HTML using::
 
-    $ jupyter-nbconvert --to html usecase1.ipynb
+  $ jupyter-nbconvert --to html usecase1.ipynb
 
-A one liner that goes directly from .md to .html is:
+A one liner that goes directly from .md to .html is::
 
   $ cat usecase1.md \
   | jupytext --from md --to ipynb \
