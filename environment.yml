@@ -1,0 +1,14 @@
+name: avl
+channels:
+  - stcorp-forge
+  - conda-forge
+dependencies:
+  - cartopy
+  - cmcrameri
+  - coda
+  - harp
+  - jupyterlab
+  - jupytext
+  - matplotlib
+  - requests
+  - sentinelsat
