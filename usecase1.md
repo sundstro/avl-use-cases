@@ -120,7 +120,7 @@ Now that the TROPOMI SO2 data product is imported, the data will be visualized o
 
 
 
-First, the SO2, latitude and longitude center data are defined. In addition, units and description of the SO2 data are read that are needed for the colorbar label. For plotting a colormap named "devon" is chosen from the cmcrameri library. The cmcrameri provides scientific colormaps where the colour combinations are readable both by colour-vision deficient and colour-blind people. The Crameri colormap options can be viewed [here](https://www.fabiocrameri.ch/colourmaps/). In the script the colormaps are called e.g. as `cm.devon`, for reversed colormap *_r* is appended to the maps name. With vmin and vmax the scaling of the colormap values are defined. 
+First, the SO2, latitude and longitude center data are defined. In addition, units and description of the SO2 data are read that are needed for the colorbar label. For plotting a colormap named "devon" is chosen from the cmcrameri library. The cmcrameri provides scientific colormaps where the colour combinations are readable both by colour-vision deficient and colour-blind people. The Crameri colormap options can be viewed [here](https://www.fabiocrameri.ch/colourmaps/). In the script the colormaps are called e.g. as `cm.batlow`. If you wish to use reversed colormap, append *_r* to the colormaps name. With vmin and vmax the scaling of the colormap values are defined. 
 
 ```python
 SO2val = product.SO2_column_number_density.data
@@ -130,7 +130,7 @@ SO2description = product.SO2_column_number_density.description
 latc=product.latitude.data
 lonc=product.longitude.data
 
-colortable=cm.devon_r
+colortable=cm.batlow
 vmin=0
 vmax=0.0001
 ```
@@ -164,7 +164,7 @@ This very unique feature of HARP allows you to apply different kind of operation
 
 
 
-Now, we will import the same datafile as in Step 1, but now **adding three different operations as a part of the import command**:
+Now, we will import the same datafile as in Step 1, but now **adding four different operations as a part of the import command**:
 
 - we only ingest data that is between -20S and 40N degrees latitude
 - we only consider pixels for which the data quality is high enough. The basic quality flag in any TROPOMI Level 2 netcdf file is given as `qa_value`. In the the [Product Readme File for SO2](https://sentinels.copernicus.eu/documents/247904/3541451/Sentinel-5P-Sulphur-Dioxide-Readme.pdf) you can find, that the basic recommendation for SO2 data is to use only those pixels where `qa_value > 0.5`. When HARP imports data, the quality values are interpreted as numbers between 0 and 100 (not 0 and 1), hence our limit in this case is 50. In HARP the `qa_value` is renamed as `SO2_column_number_density_validity`. The list of variables in HARP product after ingestion of S5P TROPOMI SO2 product are found [here](http://stcorp.github.io/harp/doc/html/ingestions/S5P_L2_SO2.html). 
@@ -211,10 +211,10 @@ SO2description = reduced_product.SO2_column_number_density.description
 latc=reduced_product.latitude.data
 lonc=reduced_product.longitude.data
 
-colortable=cm.devon_r
+colortable=cm.batlow
 # For Dobson Units
 vmin=0
-vmax=7
+vmax=8
 ```
 
 And then plot the figure:
@@ -236,3 +236,100 @@ plt.show()
 ```
 
 The plot shows how the large SO2 plume originating from La Soufriere eruption extends across the orbit. There are now also white areas within the plume, where bad quality pixels have been filtered out. It is also noticeable now much faster the plotting procedure is with the reduced dataset. 
+
+## Step 4: Regridding with HARP and plotting using pcolormesh
+
+In Steps 2 and 3 we applied the scatter function for quick plotting, however, it is not an optimal function to visualize satellite data on a map, since each pixel is plotted as a single dot. The other plot function from cartopy is pcolormesh. However, the mesh plot requires the input data (latitude, longitude, and variable to plot) as 2D matrices, and therefore the pcolormesh can not be directly applied to data imported and filtered using HARP (Step 3). This is because after these filtering operations we don't have all pixels for a scanline anymore.
+
+A solution to this problem is to regrid the S5P data to a regular latitude/longitude grid before plotting. The regridding can be done by using a `bin_spatial()` operation when importing data with HARP. Regridding data into a lat/lon grid is also needed if we want to combine the data from multiple orbits from one day into a single daily grid. This will be demonstrated in the another use cases.
+
+The `bin_spatial()` operation requires six input parameters, that defines the new grid. The inputparameters are:
+- the number of latitude edge points
+- the latitude offset at which to start the grid
+- the latitude increment (= latitude length of a grid cell)
+- the number of longitude edge points
+- the longitude offset at which to start the grid
+- the longitude increment (= longitude length of a grid cell)
+
+In this example we define a new grid at 0.05 degrees resolution over the area of the volcanic SO2 plume. The latitude and longitude offset in this case is for latitude -10S, and for longitude -70W (red point in the picture). Since the grid resolution is now 0.05 degrees and the latitudes in the new grid extend from -10S to 30N, the number of latitude edge points is 801 (=number of points from -10 to 30 at 0.05 steps). Similarly, since the the longitudes in the grid extend from -70W to -20W, the number of longitude edge points is 1001. Hence, the number edge points is one more than the number of grid cells. This is similar to the way you should provide the X and Y parameters to the pcolormesh function (see [matplotlib_documentation)](https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.pcolormesh.html).
+For a 0.1 degree by 0.1 degree global grid we would need 1800 by 3600 grid cells which equals 1801 by 3601 grid edge points.
+
+The input for `bin_spatial()` is given in the following order:
+
+bin_spatial(lat_edge_length, lat_edge_offset, lat_edge_step, lon_edge_length, lon_edge_offset, lon_edge_step)
+
+In this example, the `bin_spatial()` input is:
+
+`bin_spatial(801, -10, 0.05, 1001, -70, 0.05)`
+
+HARP can actually do a proper weighted area average to calculate the value for each grid cell. It will need the corner coordinates of each satellite pixel, provided by the `latitude_bounds` and `longitude_bounds`. This is why we need to add these variables to the `keep()` operation we perform below. We also add `derive()` latitude and longitude, so that the new grid center coordinates are included in the imported variable.
+
+As a summary, in this example the operations that will be performed with HARP import are:
+
+- considering only good quality SO2 observations: "SO2_column_number_density_validity>50"
+- keeping the needed parameters: "keep(latitude_bounds,longitude_bounds,SO2_column_number_density)"
+- gridding the SO2 data: "bin_spatial(801, -10, 0.05, 1001, -70, 0.05)"
+- converting SO2 to Dobson Units: "derive(SO2_column_number_density [DU])"
+- derive latitude and longitude coordinates of the new grid: "derive(latitude {latitude})","derive(longitude {longitude})"
+
+```python
+filename = "/Users/sundstro/Documents/ESA_virtual_lab/S5P_OFFL_L2__SO2____20210412T151823_20210412T165953_18121_01_020104_20210414T175908.nc"
+operations = ";".join([
+    "SO2_column_number_density_validity>50",
+    "keep(latitude_bounds,longitude_bounds,SO2_column_number_density)",
+    "bin_spatial(801, -10, 0.05, 1001, -70, 0.05)",
+    "derive(SO2_column_number_density [DU])",
+    "derive(latitude {latitude})",
+    "derive(longitude {longitude})",
+])
+```
+
+Here the new regridded variable is named as "regridded_product". The content of the "regridded_product" can be viewed using the Python `print()` command.
+
+```python
+regridded_product = harp.import_product(filename, operations)
+print(regridded_product)
+```
+
+As the printing of variables show, the re-gridded SO2 variable has now two dimensions (in addition to time), latitude (800) and longitude (1000). Hence, now it is possible to use pcolormesh function since the `SO2_column_number_density` is a 2D array.
+
+The corner coordinates of each grid cell are provided by the `latitude_bounds` and `longitude_bounds` variables and these are used for plotting. Note that the pcolormesh function requires these corner coordinates as the input for latitude and longitude. As we see from the print above, the shape (dimensions) of `latitude_bounds` and `longitude_bounds` is 1000 x 2. The `regridded_product.latitude_bounds.data[:,0]` array gives the latitudes of the lower corners, whereas `regridded_product.latitude_bounds.data[:,1]` gives the latitudes for upper corners.
+
+```python
+print(regridded_product.latitude_bounds.data[:,0])
+print(regridded_product.latitude_bounds.data[:,1])
+```
+
+As we see from the print, `regridded_product.latitude_bounds.data[:,1]` contains the j+1 coordinates of the first dimension ([:,0]) plus the upper right corner latitude of the grid. To get the correct input for pcolormesh, we define the gridlat variable by appending the `regridded_product.latitude_bounds.data[:,0]` array with the last element of the second array: `regridded_product.longitude_bounds.data[-1,1]`. The `gridlon` variable is defined similarly:
+
+```python
+gridlat = np.append(regridded_product.latitude_bounds.data[:,0], regridded_product.latitude_bounds.data[-1,1])
+gridlon = np.append(regridded_product.longitude_bounds.data[:,0], regridded_product.longitude_bounds.data[-1,1])
+```
+
+```python
+SO2val = regridded_product.SO2_column_number_density.data
+SO2units = regridded_product.SO2_column_number_density.unit
+SO2description = regridded_product.SO2_column_number_density.description
+    
+colortable=cm.batlow
+# For Dobson Units
+vmin=0
+vmax=9
+```
+
+Next the figure properties are definied. In Steps 2 and 3 we used the scatter function, here the actual data is plotted with `plt.pcolormesh` command, having as an input gridlon, gridlat, SO2 value and the colormap definitions. Nothe that the dimensions of the `SO2val` are time, lat, and lon, and therefore the input is given as `SO2val[0,:,:]`. Finally the colorbar is added with label text, and also the location of the colorbar is set.
+
+```python
+fig = plt.figure(figsize=(20,10))
+ax = plt.axes(projection=ccrs.PlateCarree())
+img = plt.pcolormesh(gridlon, gridlat, SO2val[0,:,:], vmin=vmin, vmax=vmax,
+                         cmap=colortable, transform=ccrs.PlateCarree())
+ax.coastlines()
+ax.gridlines()
+
+cbar = fig.colorbar(img, ax=ax,orientation='horizontal', fraction=0.04, pad=0.1)
+cbar.set_label(f'{SO2description}[{SO2units}]')
+cbar.ax.tick_params(labelsize=14)
+plt.show()
+```
