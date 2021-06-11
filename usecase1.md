@@ -65,10 +65,11 @@ from matplotlib.colors import Normalize
 import cartopy.crs as ccrs
 from cmcrameri import cm
 import requests
+import sentinelsat
 import shutil
 ```
 
-The second step is to import the original TROPOMI Level 2 SO2 file using `harp.import_product()`. Remember to check that the path to the file is correct, pointing to the location of the SO2 file in your own computer. (Because the original netcdf file is large, importing the file might take a while.)
+The second step is to import the TROPOMI Level 2 SO2 file using `harp.import_product()`. If the file does not yet exist on your local machine, we use the sentinel1sat library to automatically download the file from the Sentinel-5P Pre-Operations Data Hub. (Because the original netcdf file is large, both downloading and importing the file might take a while.)
 
 ```python
 filename = "S5P_OFFL_L2__SO2____20210412T151823_20210412T165953_18121_01_020104_20210414T175908.nc"
@@ -76,10 +77,8 @@ filename = "S5P_OFFL_L2__SO2____20210412T151823_20210412T165953_18121_01_020104_
 
 ```python
 if not os.path.exists(filename):
-    url = "https://s5phub.copernicus.eu/dhus/odata/v1/Products('86317f20-82f5-467b-acbd-db057463de9e')/$value"
-    with requests.get(url, stream=True, auth=('s5pguest', 's5pguest')) as r:
-        with open(filename, 'wb') as f:
-            shutil.copyfileobj(r.raw, f)
+    api = sentinelsat.SentinelAPI('s5pguest', 's5pguest', 'https://s5phub.copernicus.eu/dhus')
+    api.download_all(api.query(filename=filename))
 ```
 
 ```python
