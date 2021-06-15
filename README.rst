@@ -35,10 +35,10 @@ Creating HTML page
 ------------------
 A fully rendered notebook can be turned into HTML using::
 
-  $ jupyter-nbconvert --to html usecase1.ipynb
+  $ jupyter-nbconvert --to html notebook.ipynb
 
 A one liner that goes directly from .md to .html is::
 
-  $ cat usecase1.md \
+  $ cat usecase1/notebook.md \
   | jupytext --from md --to ipynb \
-  | jupyter nbconvert --execute --stdin --to html --output usecase1.html
+  | jupyter nbconvert --execute --stdin --to html --output usecase1/notebook.html
