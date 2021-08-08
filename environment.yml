@@ -11,5 +11,7 @@ dependencies:
   - jupyterlab
   - jupytext
   - matplotlib
+  - nodejs
+  - plotly
   - requests
   - sentinelsat
